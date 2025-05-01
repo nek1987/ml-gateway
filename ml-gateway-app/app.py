@@ -44,11 +44,11 @@ class EmbedReq(BaseModel):
 @app.post("/embed/bge_m3")
 async def embed(req: EmbedReq):
     texts = req.text if isinstance(req.text, list) else [req.text]
-
     payload = {
         "inputs": [{
-            "name": "TEXT", "datatype": "BYTES", "shape": [len(texts)],
-            "data": texts,                       # <-- СТРОКИ, не bytes
+            "name": "TEXT", "datatype": "BYTES",
+            "shape": [len(texts), 1],              # <-- 2-D
+            "data": [[t] for t in texts],          # <-- [[str]]
             "parameters": {"content_type": "str"}
         }],
         "outputs": [{"name": "DENSE"},
@@ -66,10 +66,10 @@ class RerankReq(BaseModel):
 async def rerank(req: RerankReq):
     payload = {
         "inputs": [
-            {"name": "QUERY", "datatype": "BYTES", "shape": [1],
-             "data": [req.query], "parameters": {"content_type": "str"}},
-            {"name": "DOC",   "datatype": "BYTES", "shape": [1],
-             "data": [req.doc],   "parameters": {"content_type": "str"}}
+            {"name": "QUERY", "datatype": "BYTES", "shape": [1,1],
+         "data": [[req.query]], "parameters": {"content_type": "str"}},
+        {"name": "DOC",   "datatype": "BYTES", "shape": [1,1],
+         "data": [[req.doc]],   "parameters": {"content_type": "str"}}
         ],
         "outputs": [{"name": "SCORE"}]
     }
