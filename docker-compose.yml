@@ -1,10 +1,11 @@
 version: '3.9'
 services:
-
   triton:
     image: nvcr.io/nvidia/tritonserver:24.05-py3-min
     command: >
-      tritonserver --model-repository=/models --http-port=8081
+      /opt/tritonserver/bin/tritonserver
+      --model-repository=/models
+      --http-port=8081
     environment:
       TRITONSERVER_DISABLE_AVX_CHECK: "1"
     volumes:
