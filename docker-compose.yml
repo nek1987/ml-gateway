@@ -2,7 +2,7 @@ version: '3.9'
 services:
 
   triton:
-    image: nvcr.io/nvidia/tritonserver:24.03-py3-min
+    image: nvcr.io/nvidia/tritonserver:24.05-py3-min
     command: >
       tritonserver --model-repository=/models --http-port=8081
     environment:
