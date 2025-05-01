@@ -20,4 +20,4 @@ services:
       TRITON_HTTP: http://triton:8081
     depends_on: [triton]
     ports:
-      - "8080:80"                   # наружу
+      - "8090:80"                   # наружу
