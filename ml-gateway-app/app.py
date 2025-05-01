@@ -1,90 +1,78 @@
-import asyncio, os, httpx, json
-# import os, httpx, triton_python_backend_utils as pb # ← УБРАТЬ
-asyncio.run(_wait_ready()) 
+import asyncio, os, json, numpy as np, httpx
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 TRITON = os.getenv("TRITON_HTTP", "http://triton:8081")
+cli = httpx.AsyncClient(timeout=30)
+
+# ---------- ждём пока Triton сообщит, что он готов ----------
 async def _wait_ready():
-    async with httpx.AsyncClient() as cli:
-        for _ in range(20):                            # ≤ 2 с
-            try:
-                r = await cli.get(f"{TRITON}/v2/health/ready", timeout=0.2)
-                if r.status_code == 200:
-                    return
-            except httpx.RequestError:
-                pass
-            await asyncio.sleep(0.1)
+    for _ in range(40):                       # ≈ 4 сек.
+        try:
+            r = await cli.get(f"{TRITON}/v2/health/ready", timeout=0.2)
+            if r.status_code == 200:
+                return
+        except httpx.RequestError:
+            pass
+        await asyncio.sleep(0.1)
 
-         
+asyncio.run(_wait_ready())
+# -----------------------------------------------------------
 
-app = FastAPI(title="ML-Gateway")
+app = FastAPI(title="Mini Triton Gateway")
 
-async def _triton(model: str, body: dict):
-    async with httpx.AsyncClient(timeout=120) as c:
-        r = await c.post(f"{TRITON}/v2/models/{model}/infer", json=body)
-        r.raise_for_status()
-        return r.json()
+# ------------------- Pydantic схемы ------------------------
+class EmbedReq(BaseModel):
+    text: str = Field(..., examples=["Salom dunyo"])
 
-# ---------- Embedding ----------
-class TextReq(BaseModel):
-    text: str
-    sparse: bool = False
-
-@app.post("/embed/m3")
-async def embed(r: TextReq):
-    body = {
-      "inputs":[{"name":"TEXT","datatype":"BYTES","shape":[1],"data":[r.text]}],
-      "outputs":[
-        {"name":"DENSE"},
-        {"name":"SPARSE_VALUES"},
-        {"name":"SPARSE_INDICES"}
-      ]
-    }
-    j = await _triton("bge_m3", body)
-    dense = j["outputs"][0]["data"][0]
-    if not r.sparse:
-        return {"dense": dense}
-    return {
-      "dense": dense,
-      "sparse":{
-        "values": j["outputs"][1]["data"],
-        "indices":j["outputs"][2]["data"]
-      }
-    }
-
-# ---------- Rerank ----------
 class RerankReq(BaseModel):
     query: str
-    docs: list[str]
+    doc: str
+# -----------------------------------------------------------
 
-@app.post("/rerank/m3")
-async def rerank(r: RerankReq):
-    body = {
-      "inputs":[
-        {"name":"QUERY","datatype":"BYTES","shape":[1],"data":[r.query]},
-        {"name":"DOC","datatype":"BYTES","shape":[len(r.docs)],"data":r.docs}
-      ],
-      "outputs":[{"name":"SCORE"}]
-    }
-    j = await _triton("bge_reranker_v2_m3", body)
-    return {"score": j["outputs"][0]["data"]}
 
-# ---------- Translate ----------
-class TReq(BaseModel):
-    text: str
-    src: str
-    tgt: str
+def _rpc(model: str, inputs: list, outputs: list):
+    return cli.post(f"{TRITON}/v2/models/{model}/infer",
+                    json={"inputs": inputs, "outputs": outputs})
 
-@app.post("/translate")
-async def translate(r: TReq):
-    body = {
-      "inputs":[
-        {"name":"TEXT","datatype":"BYTES","shape":[1],"data":[r.text]},
-        {"name":"SRC_LANG","datatype":"BYTES","shape":[1],"data":[r.src]},
-        {"name":"TGT_LANG","datatype":"BYTES","shape":[1],"data":[r.tgt]}
-      ],
-      "outputs":[{"name":"TRANSLATION"}]
-    }
-    j = await _triton("nllb_200_translate", body)
-    return {"translation": j["outputs"][0]["data"][0]}
+
+# ---------------------- EMBED ------------------------------
+@app.post("/embed/{model}")
+async def embed(model: str, body: EmbedReq):
+    payload_in = [{
+        "name": "TEXT",
+        "datatype": "BYTES",
+        "shape": [1],
+        "data": [body.text],
+        "parameters": {"content_type": "str"}
+    }]
+    outs = [{"name": "DENSE"},
+            {"name": "SPARSE_VALUES"},
+            {"name": "SPARSE_INDICES"}]
+
+    r = await _rpc(model, payload_in, outs)
+    r.raise_for_status()
+
+    out = r.json()["outputs"]
+    dense  = np.asarray(out[0]["data"], dtype=np.float32).tolist()
+    s_vals = np.asarray(out[1]["data"], dtype=np.float32).tolist()
+    s_idx  = np.asarray(out[2]["data"], dtype=np.int32 ).tolist()
+    return {"dense": dense, "sparse_values": s_vals, "sparse_indices": s_idx}
+# -----------------------------------------------------------
+
+
+# ---------------------- RERANK -----------------------------
+@app.post("/rerank/{model}")
+async def rerank(model: str, body: RerankReq):
+    payload_in = [
+        {"name": "QUERY", "datatype": "BYTES", "shape": [1],
+         "data": [body.query], "parameters": {"content_type": "str"}},
+        {"name": "DOC",   "datatype": "BYTES", "shape": [1],
+         "data": [body.doc],   "parameters": {"content_type": "str"}}
+    ]
+    r = await _rpc(model, payload_in,
+                   [{"name": "SCORE"}])
+    r.raise_for_status()
+    score = float(r.json()["outputs"][0]["data"][0])
+    return {"score": score}
+# -----------------------------------------------------------
