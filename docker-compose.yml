@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile.triton-custom
     image: triton-custom:22.12
     command: tritonserver --model-repository=/models --http-port=8081
+    shm_size: "8g"
     environment:
       TRITONSERVER_DISABLE_AVX_CHECK: "1"
     volumes:
