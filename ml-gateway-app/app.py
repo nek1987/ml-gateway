@@ -2,6 +2,7 @@
 import os, json, asyncio, httpx, logging, numpy as np
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
+from contextlib import asynccontextmanager
 
 TRITON = os.getenv("TRITON_HTTP", "http://triton:8081")
 log = logging.getLogger("waiter")
@@ -19,6 +20,13 @@ async def wait_triton_ready(timeout: int = 120):
                 log.info("Triton not reachable: %s", e)
             await asyncio.sleep(1)
     raise RuntimeError("Triton didn’t become ready for %d sec" % timeout)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await wait_triton_ready()
+    yield
+
+app = FastAPI(lifespan=lifespan)
 app = FastAPI(title="Mini Triton Gateway")
 
 # -----------------------------------------------------------------------------
