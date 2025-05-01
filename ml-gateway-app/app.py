@@ -1,4 +1,4 @@
-import os, httpx, triton_python_backend_utils as pb
+# import os, httpx, triton_python_backend_utils as pb # ← УБРАТЬ
 from fastapi import FastAPI
 from pydantic import BaseModel
 
