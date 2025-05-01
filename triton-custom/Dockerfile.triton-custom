@@ -3,7 +3,11 @@ FROM nvcr.io/nvidia/tritonserver:22.12-py3
 
 RUN pip install --no-cache-dir \
         torch==2.2.2+cu118       \
-        sentence-transformers==2.6.1 \
-        transformers==4.40.0     \
-        accelerate==0.28.0       \
+        sentence-transformers==2.7.0 \
+        transformers==4.40.2     \
+        accelerate==0.29.2       \
         --extra-index-url https://download.pytorch.org/whl/cu118
+
+RUN pip3 install --no-cache-dir flagembedding==1.2.0
+
+ENV TRITONSERVER_FLAGS="--shm-size=2G"
