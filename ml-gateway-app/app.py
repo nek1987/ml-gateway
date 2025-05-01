@@ -1,9 +1,23 @@
-import os, httpx
+import asyncio, os, httpx, json
 # import os, httpx, triton_python_backend_utils as pb # ← УБРАТЬ
+asyncio.run(_wait_ready()) 
 from fastapi import FastAPI
 from pydantic import BaseModel
 
 TRITON = os.getenv("TRITON_HTTP", "http://triton:8081")
+async def _wait_ready():
+    async with httpx.AsyncClient() as cli:
+        for _ in range(20):                            # ≤ 2 с
+            try:
+                r = await cli.get(f"{TRITON}/v2/health/ready", timeout=0.2)
+                if r.status_code == 200:
+                    return
+            except httpx.RequestError:
+                pass
+            await asyncio.sleep(0.1)
+
+         
+
 app = FastAPI(title="ML-Gateway")
 
 async def _triton(model: str, body: dict):
