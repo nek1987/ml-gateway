@@ -1,11 +1,24 @@
 # ml-gateway-app/app.py
-import os, json, asyncio, httpx, numpy as np
+import os, json, asyncio, httpx, logging, numpy as np
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 TRITON = os.getenv("TRITON_HTTP", "http://triton:8081")
-cli    = httpx.AsyncClient(timeout=30)
+log = logging.getLogger("waiter")
 
+async def wait_triton_ready(timeout: int = 120):
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        for sec in range(timeout):
+            try:
+                r = await client.get(f"{TRITON}/v2/health/ready")
+                if r.status_code == 200:
+                    log.info("Triton READY (%d сек)", sec)
+                    return
+                log.info("Triton not ready yet – HTTP %s", r.status_code)
+            except httpx.RequestError as e:
+                log.info("Triton not reachable: %s", e)
+            await asyncio.sleep(1)
+    raise RuntimeError("Triton didn’t become ready for %d sec" % timeout)
 app = FastAPI(title="Mini Triton Gateway")
 
 # -----------------------------------------------------------------------------
