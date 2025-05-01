@@ -1,4 +1,4 @@
-import asyncio, os, logging, httpx
+import os, asyncio, logging, httpx
 from typing import List, Dict, Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -7,12 +7,12 @@ TRITON = os.getenv("TRITON_HTTP", "http://triton:8081")
 READY_EP = f"{TRITON}/v2/health/ready"
 
 log = logging.getLogger("ml-gateway")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)s  %(message)s")
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s  %(levelname)s  %(message)s")
 
-# ---------- helpers ----------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 async def wait_triton_ready(timeout: int = 180) -> None:
-    """Ждём, пока Triton вернёт 200 на /health/ready."""
     async with httpx.AsyncClient(timeout=5.0) as cli:
         for sec in range(timeout):
             try:
@@ -33,55 +33,64 @@ async def triton_infer(model: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
         raise HTTPException(502, f"Triton error {r.status_code}: {r.text}")
     return r.json()
 
-# ---------- FastAPI ----------------------------------------------------------
+# ---------------------------------------------------------------------------
 
-app = FastAPI(lifespan=lambda app: wait_triton_ready())  # dunder-hack: lifespan короче
+app = FastAPI()
 
-# -------- /embed -------------------------------------------------------------
+@app.on_event("startup")
+async def _startup():
+    await wait_triton_ready()
 
-class EmbedRequest(BaseModel):
+# -------------------------- /embed -----------------------------------------
+
+class EmbedReq(BaseModel):
     texts: List[str]
 
 @app.post("/embed/bge_m3")
-async def embed(req: EmbedRequest):
+async def embed(req: EmbedReq):
     inp = {
-        "inputs": [{"name": "TEXT", "datatype": "BYTES", "shape": [len(req.texts)],
-                    "data": [t.encode() for t in req.texts], "parameters": {"binary_data": False}}],
-        "outputs": [
-            {"name": "DENSE"}, {"name": "SPARSE_VALUES"}, {"name": "SPARSE_INDICES"}]
+        "inputs": [{
+            "name": "TEXT", "datatype": "BYTES",
+            "shape": [len(req.texts)],
+            "data": [t.encode() for t in req.texts],
+            "parameters": {"binary_data": False}
+        }],
+        "outputs": [{"name": "DENSE"},
+                    {"name": "SPARSE_VALUES"},
+                    {"name": "SPARSE_INDICES"}]
     }
     res = await triton_infer("bge_m3", inp)
     return res["outputs"]
 
-# -------- /rerank ------------------------------------------------------------
+# -------------------------- /rerank ----------------------------------------
 
-class RerankRequest(BaseModel):
+class RerankReq(BaseModel):
     query: str
     doc: str
 
 @app.post("/rerank/bge_reranker_v2_m3")
-async def rerank(req: RerankRequest):
+async def rerank(req: RerankReq):
     inp = {
         "inputs": [
             {"name": "QUERY", "datatype": "BYTES", "shape": [1],
              "data": [req.query.encode()], "parameters": {"binary_data": False}},
             {"name": "DOC", "datatype": "BYTES", "shape": [1],
-             "data": [req.doc.encode()], "parameters": {"binary_data": False}},
+             "data": [req.doc.encode()], "parameters": {"binary_data": False}}
         ],
-        "outputs": [{"name": "SCORE"}],
+        "outputs": [{"name": "SCORE"}]
     }
     res = await triton_infer("bge_reranker_v2_m3", inp)
-    return res["outputs"][0]["data"][0]
+    return res["outputs"][0]["data"][0]    # float32 score
 
-# -------- /translate ---------------------------------------------------------
+# -------------------------- /translate -------------------------------------
 
-class TranslateRequest(BaseModel):
+class TransReq(BaseModel):
     text: str
     src_lang: str = "eng"
     tgt_lang: str = "rus"
 
 @app.post("/translate/nllb_200")
-async def translate(req: TranslateRequest):
+async def translate(req: TransReq):
     inp = {
         "inputs": [
             {"name": "SOURCE", "datatype": "BYTES", "shape": [1],
@@ -89,9 +98,9 @@ async def translate(req: TranslateRequest):
             {"name": "SRC_LANG", "datatype": "BYTES", "shape": [1],
              "data": [req.src_lang.encode()], "parameters": {"binary_data": False}},
             {"name": "TGT_LANG", "datatype": "BYTES", "shape": [1],
-             "data": [req.tgt_lang.encode()], "parameters": {"binary_data": False}},
+             "data": [req.tgt_lang.encode()], "parameters": {"binary_data": False}}
         ],
-        "outputs": [{"name": "TARGET"}],
+        "outputs": [{"name": "TARGET"}]
     }
     res = await triton_infer("nllb_200_translate", inp)
     return res["outputs"][0]["data"][0].decode()
