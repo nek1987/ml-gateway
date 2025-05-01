@@ -1,7 +1,10 @@
 version: '3.9'
 services:
   triton:
-    image: nvcr.io/nvidia/tritonserver:22.12-py3
+    build:
+      context: ./triton-custom
+      dockerfile: Dockerfile.triton-custom
+    image: triton-custom:22.12
     command: tritonserver --model-repository=/models --http-port=8081
     environment:
       TRITONSERVER_DISABLE_AVX_CHECK: "1"
