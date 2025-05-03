@@ -1,14 +1,20 @@
 FROM nvcr.io/nvidia/tritonserver:22.12-py3
 
+# обязательно свежий pip
+RUN python -m pip install --no-cache-dir --upgrade pip
+
+# совместимые версии
 RUN pip install --no-cache-dir \
         torch==2.2.2+cu118 \
-        transformers==4.33.3 \
-        sentence-transformers==2.4.0 \
+        transformers==4.37.0 \          # чуть свежее, но ещё cp38‑wheel
+        sentence-transformers==2.7.0 \   # здесь импорт is_nltk_available удалён
         flagembedding==1.2.3 \
         peft==0.9.0 \
         accelerate==0.28.0 \
         --extra-index-url https://download.pytorch.org/whl/cu118
 
-# отключаем «похождения» в HF‑hub
-ENV HF_HUB_DISABLE_TELEMETRY=1 \
+# всегда выставляем UTF‑8 (защита от странных файлов)
+ENV PYTHONUTF8=1 \
+    LANG=C.UTF-8 \
+    HF_HUB_DISABLE_TELEMETRY=1 \
     HF_HUB_ENABLE_HF_TRANSFER=0
