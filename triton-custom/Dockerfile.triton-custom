@@ -1,15 +1,15 @@
 FROM nvcr.io/nvidia/tritonserver:22.12-py3
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir \
+RUN pip install --no-cache-dir \
         torch==2.2.2+cu118 \
         sentence-transformers==2.6.1 \
-        transformers==4.40.0 \
-        flagembedding>=1.2.4 \
+        transformers==4.33.3 \
+        flagembedding==1.2.3 \
         peft==0.10.0 \
         accelerate==0.28.0 \
         --extra-index-url https://download.pytorch.org/whl/cu118
 
+ENV HF_HOME=/srv/models/hf-cache
+ENV TRANSFORMERS_OFFLINE=1
 ENV LANG=C.UTF-8 \
-    TRITONSERVER_FLAGS="--shm-size=2G"
+   TRITONSERVER_FLAGS="--shm-size=2G"
