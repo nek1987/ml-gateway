@@ -4,7 +4,7 @@ FROM nvcr.io/nvidia/tritonserver:22.12-py3
 RUN pip install --no-cache-dir \
         torch==2.2.2+cu118 \
         sentence-transformers==2.6.1 \
-        transformers==4.33.0 \          # ← 4.33.0, совместимо с flagembedding‑1.2.0
+        transformers==4.33.0 \
         accelerate==0.28.0 \
         flagembedding==1.2.0 \
         --extra-index-url https://download.pytorch.org/whl/cu118
