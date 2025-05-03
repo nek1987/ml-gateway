@@ -1,19 +1,19 @@
 FROM nvcr.io/nvidia/tritonserver:22.12-py3
 
-# обязательно свежий pip
-RUN python -m pip install --no-cache-dir --upgrade pip
+# ── 1. python3 вместо python ───────────────────────────────────────────────────
+RUN python3 -m pip install --no-cache-dir --upgrade pip
 
-# совместимые версии
-RUN pip install --no-cache-dir \
+# ── 2. ставим зависимости ──────────────────────────────────────────────────────
+RUN python3 -m pip install --no-cache-dir \
         torch==2.2.2+cu118 \
-        transformers==4.37.0 \          
-        sentence-transformers==2.7.0 \ 
+        transformers==4.37.0 \
+        sentence-transformers==2.7.0 \
         flagembedding==1.2.3 \
         peft==0.9.0 \
         accelerate==0.28.0 \
         --extra-index-url https://download.pytorch.org/whl/cu118
 
-# всегда выставляем UTF‑8 (защита от странных файлов)
+# ── 3. полезные переменные окружения ───────────────────────────────────────────
 ENV PYTHONUTF8=1 \
     LANG=C.UTF-8 \
     HF_HUB_DISABLE_TELEMETRY=1 \
