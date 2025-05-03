@@ -2,14 +2,13 @@ FROM nvcr.io/nvidia/tritonserver:22.12-py3
 
 RUN pip install --no-cache-dir \
         torch==2.2.2+cu118 \
-        sentence-transformers==2.6.1 \
         transformers==4.33.3 \
+        sentence-transformers==2.5.1 \
         flagembedding==1.2.3 \
-        peft==0.10.0 \
+        peft==0.9.0 \
         accelerate==0.28.0 \
         --extra-index-url https://download.pytorch.org/whl/cu118
 
-ENV HF_HOME=/srv/models/hf-cache
-ENV TRANSFORMERS_OFFLINE=1
-ENV LANG=C.UTF-8 \
-   TRITONSERVER_FLAGS="--shm-size=2G"
+# отключаем «похождения» в HF‑hub
+ENV HF_HUB_DISABLE_TELEMETRY=1 \
+    HF_HUB_ENABLE_HF_TRANSFER=0
