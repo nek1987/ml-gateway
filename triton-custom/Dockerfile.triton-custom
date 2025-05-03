@@ -6,8 +6,8 @@ RUN python -m pip install --no-cache-dir --upgrade pip
 # совместимые версии
 RUN pip install --no-cache-dir \
         torch==2.2.2+cu118 \
-        transformers==4.37.0 \          # чуть свежее, но ещё cp38‑wheel
-        sentence-transformers==2.7.0 \   # здесь импорт is_nltk_available удалён
+        transformers==4.37.0 \          
+        sentence-transformers==2.7.0 \ 
         flagembedding==1.2.3 \
         peft==0.9.0 \
         accelerate==0.28.0 \
