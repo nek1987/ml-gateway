@@ -1,12 +1,16 @@
 # Dockerfile.triton-custom
 FROM nvcr.io/nvidia/tritonserver:22.12-py3
 
-RUN pip install --no-cache-dir \
-    torch==2.2.2+cu118 \
-    sentence-transformers==2.6.1 \
-    transformers==4.33.3 \
-    flagembedding==1.2.3 \
-    accelerate==0.28.0 \
-    --extra-index-url https://download.pytorch.org/whl/cu118
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+        torch==2.2.2+cu118 \
+        sentence-transformers==2.6.1 \
+        transformers==4.40.0 \
+        flagembedding>=1.2.4 \
+        accelerate==0.28.0 \
+        --extra-index-url https://download.pytorch.org/whl/cu118
 
-ENV TRITONSERVER_FLAGS="--shm-size=2G"
+# больного UnicodeDecodeError иногда лечит LANG
+ENV LANG=C.UTF-8 \
+    TRITONSERVER_FLAGS="--shm-size=2G"
