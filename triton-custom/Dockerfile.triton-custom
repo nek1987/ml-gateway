@@ -1,10 +1,27 @@
+# ------------------------------
+# 1. Базовый образ Triton
 FROM nvcr.io/nvidia/tritonserver:22.12-py3
 
-# ── 1. python3 вместо python ───────────────────────────────────────────────────
-RUN python3 -m pip install --no-cache-dir --upgrade pip
+# ------------------------------
+# 2. Создаём директорию для кеша HF‑hub
+RUN mkdir -p /opt/hf-cache
+
+# ------------------------------
+# 3. Экспортируем переменные окружения,
+#    чтобы 🤗-библиотеки использовали новый путь
+ENV HF_HOME=/opt/hf-cache \
+    HF_HUB_CACHE=/opt/hf-cache \
+    TRANSFORMERS_CACHE=/opt/hf-cache \
+    PYTHONUTF8=1 \
+    LANG=C.UTF-8 \
+    HF_HUB_DISABLE_TELEMETRY=1 \
+    HF_HUB_ENABLE_HF_TRANSFER=0
+
+
 
 # ── 2. ставим зависимости ──────────────────────────────────────────────────────
-RUN python3 -m pip install --no-cache-dir \
+RUN python3 -m pip install --no-cache-dir --upgrade pip && \
+    python3 -m pip install --no-cache-dir \
     torch==2.2.2+cu118 \
     "transformers<5" \
     sentence-transformers==2.7.0 \
@@ -14,8 +31,3 @@ RUN python3 -m pip install --no-cache-dir \
     --extra-index-url https://download.pytorch.org/whl/cu118
 
 
-# ── 3. полезные переменные окружения ───────────────────────────────────────────
-ENV PYTHONUTF8=1 \
-    LANG=C.UTF-8 \
-    HF_HUB_DISABLE_TELEMETRY=1 \
-    HF_HUB_ENABLE_HF_TRANSFER=0
