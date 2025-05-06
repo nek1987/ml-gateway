@@ -1,6 +1,6 @@
 import asyncio, os, logging, httpx
 from typing import List, Union, Dict, Any
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 import base64
 import langid
